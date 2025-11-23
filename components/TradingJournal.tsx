@@ -4,12 +4,14 @@ import { Modal } from './ui/Modal';
 import { Button, Input, Textarea, Label, Select } from './ui/Form';
 import { useData } from '../context/DataContext';
 import { Direction } from '../types';
-import { ArrowUpRight, ArrowDownRight, MoreHorizontal, Filter, Plus, Trash2 } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, MoreHorizontal, Filter, Plus, Trash2, Edit2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
 
 export const TradingJournal: React.FC = () => {
-  const { trades, addTrade, deleteTrade } = useData();
+  const { trades, addTrade, editTrade, deleteTrade } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     ticker: '',
@@ -19,7 +21,8 @@ export const TradingJournal: React.FC = () => {
     size: '',
     status: 'Open' as 'Open' | 'Win' | 'Loss' | 'Breakeven',
     rationale: '',
-    exitReason: ''
+    exitReason: '',
+    postExitReflection: ''
   });
 
   // Sort trades by date desc
@@ -38,20 +41,8 @@ export const TradingJournal: React.FC = () => {
     ? (trades.filter(t => t.status === 'Win').length / closedTradesCount) * 100 
     : 0;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    addTrade({
-      date: formData.date,
-      ticker: formData.ticker.toUpperCase(),
-      direction: formData.direction,
-      entryPrice: Number(formData.entryPrice),
-      exitPrice: formData.exitPrice ? Number(formData.exitPrice) : null,
-      size: Number(formData.size),
-      status: formData.status,
-      rationale: formData.rationale,
-      exitReason: formData.exitReason || undefined
-    });
-    setIsModalOpen(false);
+  const handleOpenModal = () => {
+    setEditingId(null);
     setFormData({
       date: new Date().toISOString().split('T')[0],
       ticker: '',
@@ -61,8 +52,84 @@ export const TradingJournal: React.FC = () => {
       size: '',
       status: 'Open',
       rationale: '',
-      exitReason: ''
+      exitReason: '',
+      postExitReflection: ''
     });
+    setIsModalOpen(true);
+  };
+
+  const handleEdit = (trade: any) => {
+    setEditingId(trade.id);
+    setFormData({
+      date: trade.date,
+      ticker: trade.ticker,
+      direction: trade.direction,
+      entryPrice: trade.entryPrice.toString(),
+      exitPrice: trade.exitPrice ? trade.exitPrice.toString() : '',
+      size: trade.size.toString(),
+      status: trade.status,
+      rationale: trade.rationale,
+      exitReason: trade.exitReason || '',
+      postExitReflection: trade.postExitReflection || ''
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleExitPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const price = e.target.value;
+    
+    setFormData(prev => {
+      let newStatus = prev.status;
+      
+      // Auto-calculate status if user enters exit price and status was Open
+      if (price && prev.entryPrice) {
+        const entry = Number(prev.entryPrice);
+        const exit = Number(price);
+        
+        if (prev.direction === Direction.LONG) {
+          if (exit > entry) newStatus = 'Win';
+          else if (exit < entry) newStatus = 'Loss';
+          else newStatus = 'Breakeven';
+        } else {
+          // Short
+          if (exit < entry) newStatus = 'Win';
+          else if (exit > entry) newStatus = 'Loss';
+          else newStatus = 'Breakeven';
+        }
+      } else if (!price && prev.status !== 'Open') {
+        // Optional: revert to open if cleared? keeping it manual is usually safer
+      }
+
+      return {
+        ...prev,
+        exitPrice: price,
+        status: newStatus
+      };
+    });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const payload = {
+      date: formData.date,
+      ticker: formData.ticker.toUpperCase(),
+      direction: formData.direction,
+      entryPrice: Number(formData.entryPrice),
+      exitPrice: formData.exitPrice ? Number(formData.exitPrice) : null,
+      size: Number(formData.size),
+      status: formData.status,
+      rationale: formData.rationale,
+      exitReason: formData.exitReason || undefined,
+      postExitReflection: formData.postExitReflection || undefined
+    };
+
+    if (editingId) {
+      editTrade(editingId, payload);
+    } else {
+      addTrade(payload);
+    }
+    
+    setIsModalOpen(false);
   };
 
   return (
@@ -133,7 +200,7 @@ export const TradingJournal: React.FC = () => {
         action={
           <div className="flex gap-3">
              <button 
-              onClick={() => setIsModalOpen(true)}
+              onClick={handleOpenModal}
               className="bg-zinc-100 hover:bg-white text-zinc-900 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors flex items-center gap-2"
             >
               <Plus size={16} /> Log Trade
@@ -195,11 +262,28 @@ export const TradingJournal: React.FC = () => {
                 </div>
               </div>
 
-              <div className="mt-4 md:mt-0 md:w-64 border-l border-zinc-800/50 pl-0 md:pl-6">
-                 <p className="text-xs text-zinc-400 italic line-clamp-2">"{trade.rationale}"</p>
+              <div className="mt-4 md:mt-0 md:w-64 border-l border-zinc-800/50 pl-0 md:pl-6 flex flex-col gap-3">
+                 <div>
+                    <p className="text-[10px] text-zinc-500 uppercase font-bold mb-0.5">Rationale</p>
+                    <p className="text-xs text-zinc-400 italic line-clamp-2">"{trade.rationale}"</p>
+                 </div>
+                 {(trade.exitReason || trade.postExitReflection) && (
+                   <div>
+                      <p className="text-[10px] text-zinc-500 uppercase font-bold mb-0.5">Exit & Reflection</p>
+                      {trade.exitReason && <p className="text-xs text-zinc-400 mb-1"><span className="text-zinc-500">Exit:</span> {trade.exitReason}</p>}
+                      {trade.postExitReflection && <p className="text-xs text-indigo-300/80 italic">"{trade.postExitReflection}"</p>}
+                   </div>
+                 )}
               </div>
 
               <div className="hidden md:flex ml-4 opacity-0 group-hover:opacity-100 transition-opacity items-center gap-1">
+                <button 
+                  onClick={() => handleEdit(trade)}
+                  className="text-zinc-500 hover:text-indigo-400 p-2 transition-colors rounded-lg hover:bg-zinc-900"
+                  title="Edit Trade"
+                >
+                  <Edit2 size={18} />
+                </button>
                 <button 
                   onClick={() => {
                     if(confirm('Delete this trade?')) {
@@ -210,9 +294,6 @@ export const TradingJournal: React.FC = () => {
                   title="Remove Trade"
                 >
                   <Trash2 size={18} />
-                </button>
-                <button className="text-zinc-500 hover:text-white p-2 transition-colors rounded-lg hover:bg-zinc-900">
-                  <MoreHorizontal size={18} />
                 </button>
               </div>
 
@@ -227,7 +308,7 @@ export const TradingJournal: React.FC = () => {
         </div>
       </Card>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Log New Trade">
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingId ? "Edit Trade" : "Log New Trade"}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -300,8 +381,7 @@ export const TradingJournal: React.FC = () => {
                 step="any"
                 placeholder="0.00" 
                 value={formData.exitPrice} 
-                onChange={e => setFormData({...formData, exitPrice: e.target.value})} 
-                disabled={formData.status === 'Open'}
+                onChange={handleExitPriceChange} 
               />
             </div>
             <div>
@@ -329,22 +409,34 @@ export const TradingJournal: React.FC = () => {
             />
           </div>
 
-          {formData.status !== 'Open' && (
-            <div>
-              <Label htmlFor="exitReason">Exit Reason</Label>
-              <Textarea 
-                id="exitReason"
-                className="min-h-[60px]"
-                placeholder="Why did you close it?" 
-                value={formData.exitReason} 
-                onChange={e => setFormData({...formData, exitReason: e.target.value})}
-              />
+          {(formData.status !== 'Open' || formData.exitPrice !== '') && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div>
+                <Label htmlFor="exitReason">Exit Reason</Label>
+                <Textarea 
+                  id="exitReason"
+                  className="min-h-[80px]"
+                  placeholder="Why did you close it? Target hit? Stop hit?" 
+                  value={formData.exitReason} 
+                  onChange={e => setFormData({...formData, exitReason: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label htmlFor="postExitReflection">Trade Reflection</Label>
+                <Textarea 
+                  id="postExitReflection"
+                  className="min-h-[80px]"
+                  placeholder="What did you learn? Did you follow your plan?" 
+                  value={formData.postExitReflection} 
+                  onChange={e => setFormData({...formData, postExitReflection: e.target.value})}
+                />
+              </div>
             </div>
           )}
 
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-            <Button type="submit">Log Trade</Button>
+            <Button type="submit">{editingId ? 'Update Trade' : 'Log Trade'}</Button>
           </div>
         </form>
       </Modal>

@@ -43,6 +43,7 @@ export interface Trade {
   status: 'Open' | 'Win' | 'Loss' | 'Breakeven';
   rationale: string;
   exitReason?: string;
+  postExitReflection?: string;
 }
 
 export interface TabProps {

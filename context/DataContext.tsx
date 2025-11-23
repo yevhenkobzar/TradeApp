@@ -18,6 +18,7 @@ interface DataContextType {
   editPortfolioItem: (id: string, item: Partial<Omit<PortfolioItem, 'id'>>) => Promise<void>;
   deletePortfolioItem: (id: string) => Promise<void>;
   addTrade: (trade: Omit<Trade, 'id' | 'pnl'>) => Promise<void>;
+  editTrade: (id: string, trade: Partial<Omit<Trade, 'id' | 'pnl'>>) => Promise<void>;
   deleteTrade: (id: string) => Promise<void>;
 }
 
@@ -237,6 +238,44 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const editTrade = async (id: string, updates: Partial<Omit<Trade, 'id' | 'pnl'>>) => {
+    const currentTrade = trades.find(t => t.id === id);
+    if (!currentTrade) return;
+
+    // Merge updates
+    const mergedTrade = { ...currentTrade, ...updates };
+    
+    // Recalculate PnL
+    let pnl = currentTrade.pnl;
+    
+    if (mergedTrade.status !== 'Open' && mergedTrade.exitPrice) {
+       const entry = mergedTrade.entryPrice;
+       const exit = mergedTrade.exitPrice;
+       const size = mergedTrade.size;
+       if (mergedTrade.direction === Direction.LONG) {
+         pnl = ((exit - entry) / entry) * size;
+       } else {
+         pnl = ((entry - exit) / entry) * size;
+       }
+    } else if (mergedTrade.status === 'Open') {
+        pnl = null;
+    }
+
+    const finalTrade = { ...mergedTrade, pnl };
+
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from('trades').update({ 
+          ...updates,
+          pnl: pnl
+      }).eq('id', id);
+      if (!error) setTrades(prev => prev.map(t => t.id === id ? finalTrade : t));
+    } else {
+      const updated = trades.map(t => t.id === id ? finalTrade : t);
+      setTrades(updated);
+      persistToLS('trades', updated);
+    }
+  };
+
   const deleteTrade = async (id: string) => {
     if (isSupabaseConfigured && supabase) {
       const { error } = await supabase.from('trades').delete().eq('id', id);
@@ -264,6 +303,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       editPortfolioItem,
       deletePortfolioItem,
       addTrade,
+      editTrade,
       deleteTrade
     }}>
       {children}
