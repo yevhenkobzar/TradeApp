@@ -20,6 +20,7 @@ interface DataContextType {
   addTrade: (trade: Omit<Trade, 'id' | 'pnl'>) => Promise<void>;
   editTrade: (id: string, trade: Partial<Omit<Trade, 'id' | 'pnl'>>) => Promise<void>;
   deleteTrade: (id: string) => Promise<void>;
+  clearTrades: () => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -287,6 +288,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const clearTrades = async () => {
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from('trades').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (!error) setTrades([]);
+    } else {
+      setTrades([]);
+      persistToLS('trades', []);
+    }
+  };
+
   return (
     <DataContext.Provider value={{
       journalEntries,
@@ -304,7 +315,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       deletePortfolioItem,
       addTrade,
       editTrade,
-      deleteTrade
+      deleteTrade,
+      clearTrades
     }}>
       {children}
     </DataContext.Provider>

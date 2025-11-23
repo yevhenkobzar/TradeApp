@@ -8,7 +8,7 @@ import { ArrowUpRight, ArrowDownRight, MoreHorizontal, Filter, Plus, Trash2, Edi
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
 
 export const TradingJournal: React.FC = () => {
-  const { trades, addTrade, editTrade, deleteTrade } = useData();
+  const { trades, addTrade, editTrade, deleteTrade, clearTrades } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   
@@ -199,14 +199,27 @@ export const TradingJournal: React.FC = () => {
         title="Trade History" 
         action={
           <div className="flex gap-3">
+            {trades.length > 0 && (
+              <button 
+                onClick={() => {
+                  if (confirm('Are you sure you want to delete ALL trades? This action cannot be undone.')) {
+                    clearTrades();
+                  }
+                }}
+                className="text-zinc-500 hover:text-rose-500 transition-colors flex items-center gap-2 text-sm px-2"
+                title="Clear All History"
+              >
+                <Trash2 size={16} /> <span className="hidden md:inline">Clear History</span>
+              </button>
+            )}
+            <button className="text-zinc-400 hover:text-white transition-colors flex items-center gap-2 text-sm px-2">
+              <Filter size={16} /> Filter
+            </button>
              <button 
               onClick={handleOpenModal}
               className="bg-zinc-100 hover:bg-white text-zinc-900 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors flex items-center gap-2"
             >
               <Plus size={16} /> Log Trade
-            </button>
-            <button className="text-zinc-400 hover:text-white transition-colors flex items-center gap-2 text-sm">
-              <Filter size={16} /> Filter
             </button>
           </div>
         }
