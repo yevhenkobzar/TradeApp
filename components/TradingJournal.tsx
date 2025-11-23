@@ -4,7 +4,7 @@ import { Modal } from './ui/Modal';
 import { Button, Input, Textarea, Label, Select } from './ui/Form';
 import { useData } from '../context/DataContext';
 import { Direction } from '../types';
-import { ArrowUpRight, ArrowDownRight, MoreHorizontal, Filter, Plus, Trash2, Edit2 } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Filter, Plus, Trash2, Edit2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
 
 export const TradingJournal: React.FC = () => {
