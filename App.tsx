@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { DataProvider } from './context/DataContext';
 import { MarketReflections } from './components/MarketReflections';
 import { PortfolioBreakdown } from './components/PortfolioBreakdown';
 import { TradingJournal } from './components/TradingJournal';
-import { LayoutDashboard, LineChart, BookOpen, Settings, Bell, Search } from 'lucide-react';
+import { LayoutDashboard, LineChart, BookOpen, Bell, Search } from 'lucide-react';
 
 // Tab Configuration
 const TABS = [
