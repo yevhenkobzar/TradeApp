@@ -218,7 +218,7 @@ export const PortfolioBreakdown: React.FC = () => {
         {/* Holdings Table */}
         <Card 
           title="Holdings Breakdown" 
-          className="lg:col-span-2 overflow-hidden h-[400px] flex flex-col"
+          className="lg:col-span-2 min-h-[400px] flex flex-col"
           action={
             <div className="flex items-center gap-2">
               <button 
@@ -238,7 +238,7 @@ export const PortfolioBreakdown: React.FC = () => {
             </div>
           }
         >
-          <div className="overflow-auto flex-1">
+          <div className="overflow-x-auto">
             {stats.dataByToken.length > 0 ? (
               <table className="w-full text-left text-sm text-zinc-400">
                 <thead className="bg-zinc-950/50 sticky top-0 z-10 text-xs uppercase tracking-wider font-semibold text-zinc-500">
@@ -298,14 +298,14 @@ export const PortfolioBreakdown: React.FC = () => {
                 </tbody>
               </table>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center text-zinc-500 gap-2">
+              <div className="h-full flex flex-col items-center justify-center text-zinc-500 gap-2 py-12">
                 <p>Your portfolio is empty.</p>
                 <Button variant="secondary" onClick={() => handleOpenModal()}>Add your first asset</Button>
               </div>
             )}
           </div>
           {lastUpdated && stats.dataByToken.length > 0 && (
-             <div className="px-6 py-2 border-t border-zinc-800 text-[10px] text-zinc-600 flex justify-between items-center bg-zinc-950">
+             <div className="px-6 py-2 border-t border-zinc-800 text-[10px] text-zinc-600 flex justify-between items-center bg-zinc-950 mt-auto">
                <span>
                   Crypto Data: Real-time (CryptoCompare) • Stocks: Market Sim
                </span>

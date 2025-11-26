@@ -49,20 +49,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const fetchData = async () => {
       setLoading(true);
       if (isSupabaseConfigured && supabase) {
-        // Fetch from Supabase
+        console.log("App: Connecting to Supabase...");
+        
         try {
-          const { data: journalData } = await supabase.from('journal_entries').select('*').order('date', { ascending: false });
-          const { data: portfolioData } = await supabase.from('portfolio_items').select('*');
-          const { data: tradesData } = await supabase.from('trades').select('*').order('date', { ascending: false });
+          const { data: journalData, error: journalError } = await supabase.from('journal_entries').select('*').order('date', { ascending: false });
+          if (journalError) console.error("Supabase Journal Error:", journalError);
+          else if (journalData) setJournalEntries(journalData);
 
-          if (journalData) setJournalEntries(journalData);
-          if (portfolioData) setPortfolioItems(portfolioData);
-          if (tradesData) setTrades(tradesData);
+          const { data: portfolioData, error: portfolioError } = await supabase.from('portfolio_items').select('*');
+          if (portfolioError) console.error("Supabase Portfolio Error:", portfolioError);
+          else if (portfolioData) setPortfolioItems(portfolioData);
+
+          const { data: tradesData, error: tradesError } = await supabase.from('trades').select('*').order('date', { ascending: false });
+          if (tradesError) console.error("Supabase Trades Error:", tradesError);
+          else if (tradesData) setTrades(tradesData);
+          
+          console.log("App: Supabase Data Fetched");
         } catch (error) {
-          console.error("Error fetching from Supabase:", error);
+          console.error("Critical Error fetching from Supabase:", error);
         }
       } else {
-        // Fallback to LocalStorage
+        console.log("App: Supabase not configured, using LocalStorage");
         const savedJournal = localStorage.getItem('journalEntries');
         const savedPortfolio = localStorage.getItem('portfolioItems');
         const savedTrades = localStorage.getItem('trades');
@@ -112,11 +119,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    // 3. Simulate Stocks (Random Walk for Demo purposes as free Stock APIs are rare/limited)
-    // In a production app, you would fetch from Finnhub or AlphaVantage here.
+    // 3. Simulate Stocks (Random Walk for Demo purposes)
     stockItems.forEach(item => {
       const current = newPrices[item.token] || item.currentPrice;
-      // Fluctuate by +/- 0.5%
       const change = 1 + (Math.random() - 0.5) * 0.01; 
       newPrices[item.token] = Number((current * change).toFixed(2));
     });
@@ -135,7 +140,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const interval = setInterval(refreshPrices, 15000);
       return () => clearInterval(interval);
     }
-  }, [loading, portfolioItems.length]); // Intentionally not including refreshPrices to avoid loop, handled by ref or simple dependency
+  }, [loading, portfolioItems.length]); 
 
   // Helper to persist to LS if not using Supabase
   const persistToLS = (key: string, data: any) => {
@@ -149,7 +154,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     if (isSupabaseConfigured && supabase) {
       const { error } = await supabase.from('journal_entries').insert([newEntry]);
-      if (!error) setJournalEntries(prev => [newEntry, ...prev]);
+      if (error) {
+        console.error("Error adding journal entry:", error);
+      } else {
+        setJournalEntries(prev => [newEntry, ...prev]);
+      }
     } else {
       const updated = [newEntry, ...journalEntries];
       setJournalEntries(updated);
@@ -160,7 +169,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const deleteJournalEntry = async (id: string) => {
     if (isSupabaseConfigured && supabase) {
       const { error } = await supabase.from('journal_entries').delete().eq('id', id);
-      if (!error) setJournalEntries(prev => prev.filter(item => item.id !== id));
+      if (error) {
+        console.error("Error deleting journal entry:", error);
+      } else {
+        setJournalEntries(prev => prev.filter(item => item.id !== id));
+      }
     } else {
       const updated = journalEntries.filter(item => item.id !== id);
       setJournalEntries(updated);
@@ -173,20 +186,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (isSupabaseConfigured && supabase) {
       const { error } = await supabase.from('portfolio_items').insert([newItem]);
-      if (!error) setPortfolioItems(prev => [newItem, ...prev]);
+      if (error) {
+        console.error("Error adding portfolio item:", error);
+      } else {
+        setPortfolioItems(prev => [newItem, ...prev]);
+      }
     } else {
       const updated = [newItem, ...portfolioItems];
       setPortfolioItems(updated);
       persistToLS('portfolioItems', updated);
     }
-    // Trigger immediate price refresh
     setTimeout(refreshPrices, 500);
   };
 
   const editPortfolioItem = async (id: string, updates: Partial<Omit<PortfolioItem, 'id'>>) => {
     if (isSupabaseConfigured && supabase) {
       const { error } = await supabase.from('portfolio_items').update(updates).eq('id', id);
-      if (!error) {
+      if (error) {
+        console.error("Error updating portfolio item:", error);
+      } else {
         setPortfolioItems(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
       }
     } else {
@@ -200,7 +218,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const deletePortfolioItem = async (id: string) => {
     if (isSupabaseConfigured && supabase) {
       const { error } = await supabase.from('portfolio_items').delete().eq('id', id);
-      if (!error) setPortfolioItems(prev => prev.filter(item => item.id !== id));
+      if (error) {
+        console.error("Error deleting portfolio item:", error);
+      } else {
+        setPortfolioItems(prev => prev.filter(item => item.id !== id));
+      }
     } else {
       const updated = portfolioItems.filter(item => item.id !== id);
       setPortfolioItems(updated);
@@ -231,7 +253,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (isSupabaseConfigured && supabase) {
       const { error } = await supabase.from('trades').insert([newTrade]);
-      if (!error) setTrades(prev => [newTrade, ...prev]);
+      if (error) {
+        console.error("Error adding trade:", error);
+      } else {
+        setTrades(prev => [newTrade, ...prev]);
+      }
     } else {
       const updated = [newTrade, ...trades];
       setTrades(updated);
@@ -269,7 +295,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ...updates,
           pnl: pnl
       }).eq('id', id);
-      if (!error) setTrades(prev => prev.map(t => t.id === id ? finalTrade : t));
+      
+      if (error) {
+        console.error("Error updating trade:", error);
+      } else {
+        setTrades(prev => prev.map(t => t.id === id ? finalTrade : t));
+      }
     } else {
       const updated = trades.map(t => t.id === id ? finalTrade : t);
       setTrades(updated);
@@ -280,7 +311,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const deleteTrade = async (id: string) => {
     if (isSupabaseConfigured && supabase) {
       const { error } = await supabase.from('trades').delete().eq('id', id);
-      if (!error) setTrades(prev => prev.filter(item => item.id !== id));
+      if (error) {
+        console.error("Error deleting trade:", error);
+      } else {
+        setTrades(prev => prev.filter(item => item.id !== id));
+      }
     } else {
       const updated = trades.filter(item => item.id !== id);
       setTrades(updated);
@@ -291,7 +326,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const clearTrades = async () => {
     if (isSupabaseConfigured && supabase) {
       const { error } = await supabase.from('trades').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      if (!error) setTrades([]);
+      if (error) {
+        console.error("Error clearing trades:", error);
+      } else {
+        setTrades([]);
+      }
     } else {
       setTrades([]);
       persistToLS('trades', []);
